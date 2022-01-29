@@ -1,0 +1,35 @@
+---
+- hosts: localhost
+  become: yes
+
+  vars:
+    usergroup: superusers
+    users:
+      - user2
+      - user3
+  vars_files:
+    - "vault.yml"
+
+  tasks:
+    - name: Create group
+      ansible.builtin.group:
+        name: "{{ usergroup }}"
+        state: present
+
+    - name: Allow the created group to have sudo
+      ansible.builtin.lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: "^%{{ usergroup }}"
+        line: '%{{ usergroup }} ALL=(ALL) ALL'
+        validate: /usr/sbin/visudo -cf %s
+
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ item }}"
+        group: "{{ usergroup }}"
+        password: "{{ dafault_user_password | password_hash('sha512') }}"
+        update_password: on_create
+        state: present
+        append: yes
+      with_items: "{{ users }}"
